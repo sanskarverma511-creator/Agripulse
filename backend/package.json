@@ -1,0 +1,28 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Mongo-backed API for the MCA Smart Agri Market platform",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "import:csv": "node scripts/importCsv.js",
+    "test": "node --check index.js && node --check routes/api.js"
+  },
+  "keywords": [
+    "agriculture",
+    "mongodb",
+    "express",
+    "market-intelligence"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.13.6",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "mongodb": "^7.1.1",
+    "morgan": "^1.10.1"
+  }
+}
