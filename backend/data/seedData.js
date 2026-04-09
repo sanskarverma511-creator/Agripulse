@@ -121,7 +121,7 @@ const COMMODITY_CONFIG = {
     sugarcane: { arrivalBase: 800, basePrice: 480, spread: 40, slope: 5 },
 };
 
-function buildPriceDocs(days = 24) {
+function buildPriceDocs(days = 90) {
     const today = new Date(Date.UTC(2026, 3, 2));
     const docs = [];
 

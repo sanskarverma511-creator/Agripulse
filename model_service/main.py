@@ -1,12 +1,17 @@
-from __future__ import annotations
-
+import json
 import logging
 import math
+import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from statistics import mean, pstdev
 
+import joblib
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+import pipeline
 
 
 logger = logging.getLogger(__name__)
@@ -90,6 +95,33 @@ CROP_WEATHER_RULES = {
         "sensitivity": 0.85,
     },
 }
+
+MODELS_DIR = Path(__file__).parent.parent / "models"
+
+
+class ModelManager:
+    def __init__(self, models_dir: Path):
+        self.models_dir = models_dir
+        self.models: dict[str, any] = {}
+        self.load_models()
+
+    def load_models(self):
+        for commodity in AVAILABLE_MODELS:
+            model_path = self.models_dir / commodity / f"{commodity}_model.pkl"
+            if model_path.exists():
+                try:
+                    self.models[commodity] = joblib.load(model_path)
+                    logger.info(f"Loaded model for {commodity}")
+                except Exception as e:
+                    logger.error(f"Failed to load model for {commodity}: {e}")
+            else:
+                logger.warning(f"No model found for {commodity} at {model_path}")
+
+    def get_model(self, commodity: str):
+        return self.models.get(commodity)
+
+
+model_manager = ModelManager(MODELS_DIR)
 
 app = FastAPI(title="Smart Agri Market Model Service")
 
@@ -545,7 +577,39 @@ def _score_candidate(
     last_arrival = arrivals[-1]
     arrival_adjustment = ((avg_arrival - last_arrival) / max(avg_arrival, 1)) * 70
     weather_signal = _analyze_weather(commodity, candidate.weather)
-    predicted_price = (
+    
+    # Try ML model first
+    model = model_manager.get_model(commodity)
+    ml_predicted_price = None
+    
+    if model:
+        try:
+            # Convert history to DataFrame for feature engineering
+            history_df = pd.DataFrame([p.model_dump() for p in history])
+            # Rename columns to match training pipeline
+            history_df = history_df.rename(columns={
+                "arrivalQty": "arrival_qty",
+                "modalPrice": "modal_price",
+                "maxPrice": "Max_Price",
+                "minPrice": "Min_Price"
+            })
+            history_df["market"] = candidate.marketId
+            
+            features = pipeline.build_features(history_df)
+            if not features.empty:
+                # Use the latest feature row for prediction
+                latest_features = features.iloc[-1:]
+                # Select only the features the model was trained on
+                # (Assuming the model only uses the engineered features)
+                # For LGBM, we can pass the whole DF if it matches training columns
+                prediction = model.predict(latest_features)
+                ml_predicted_price = float(prediction[0])
+                logger.info(f"ML prediction for {commodity} in {candidate.marketName}: {ml_predicted_price}")
+        except Exception as e:
+            logger.warning(f"ML inference failed for {commodity}: {e}")
+
+    # Heuristic baseline
+    heuristic_price = (
         (0.45 * last_price)
         + (0.25 * rolling3)
         + (0.2 * rolling7)
@@ -553,6 +617,9 @@ def _score_candidate(
         + arrival_adjustment
         + weather_signal["adjustment"]
     )
+    
+    # Combined prediction (favor ML if available)
+    predicted_price = ml_predicted_price if ml_predicted_price is not None else heuristic_price
 
     transport_cost = _transport_cost(transport_cost_per_km, candidate.estimatedDistanceKm)
     gross_revenue = round(predicted_price * quantity, 2) if quantity is not None else None
