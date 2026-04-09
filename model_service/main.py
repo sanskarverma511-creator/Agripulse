@@ -20,6 +20,7 @@ AVAILABLE_MODELS = [
     "paddy",
     "potato",
     "soybean",
+    "sugarcane",
     "tomato",
     "wheat",
 ]
@@ -73,6 +74,13 @@ CROP_WEATHER_RULES = {
         "ideal_temp": (21, 30),
         "ideal_weekly_precip_mm": 10,
         "sensitivity": 1.0,
+    },
+    "sugarcane": {
+        "heavy_rain_mm": 30,
+        "humidity_ceiling": 88,
+        "ideal_temp": (21, 36),
+        "ideal_weekly_precip_mm": 40,
+        "sensitivity": 0.5,
     },
     "wheat": {
         "heavy_rain_mm": 12,

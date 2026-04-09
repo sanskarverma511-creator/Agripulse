@@ -6,14 +6,24 @@ INSERT INTO markets (name, district) VALUES
 ('Moshi', 'Pune')
 ON CONFLICT DO NOTHING;
 
--- Insert some dummy prices for Onion, Potato, Tomato
+-- Insert some dummy prices for all crops
 INSERT INTO prices (market_id, commodity, date, price, arrival_qty) VALUES
 (1, 'onion', CURRENT_DATE, 25.50, 1500),
 (1, 'potato', CURRENT_DATE, 20.00, 1200),
 (1, 'tomato', CURRENT_DATE, 40.00, 800),
+(1, 'wheat', CURRENT_DATE, 30.00, 1000),
+(1, 'soybean', CURRENT_DATE, 50.00, 500),
+(1, 'paddy', CURRENT_DATE, 28.00, 1500),
+(1, 'maize', CURRENT_DATE, 22.00, 2000),
+(1, 'gram', CURRENT_DATE, 60.00, 400),
 (2, 'onion', CURRENT_DATE, 26.00, 400),
 (2, 'potato', CURRENT_DATE, 21.00, 500),
-(3, 'tomato', CURRENT_DATE, 38.00, 600),
+(2, 'tomato', CURRENT_DATE, 42.00, 300),
+(2, 'wheat', CURRENT_DATE, 31.00, 600),
+(2, 'soybean', CURRENT_DATE, 52.00, 200),
 (4, 'onion', CURRENT_DATE, 24.50, 2000),
 (4, 'potato', CURRENT_DATE, 19.50, 1800),
-(4, 'tomato', CURRENT_DATE, 35.00, 1000);
+(4, 'tomato', CURRENT_DATE, 35.00, 1000),
+(4, 'maize', CURRENT_DATE, 20.00, 2500),
+(4, 'gram', CURRENT_DATE, 58.00, 600),
+(4, 'sugarcane', CURRENT_DATE, 4.80, 5000);

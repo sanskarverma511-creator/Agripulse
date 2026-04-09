@@ -22,6 +22,7 @@ export const commodityLabel = (commodity, language = 'en') => {
     soybean: { en: 'Soybean', hi: '\u0938\u094b\u092f\u093e\u092c\u0940\u0928' },
     tomato: { en: 'Tomato', hi: '\u091f\u092e\u093e\u091f\u0930' },
     wheat: { en: 'Wheat', hi: '\u0917\u0947\u0939\u0942\u0901' },
+    sugarcane: { en: 'Sugarcane', hi: '\u0917\u0928\u094d\u0928\u093e' },
   };
 
   return labels[commodity]?.[language] || commodity;

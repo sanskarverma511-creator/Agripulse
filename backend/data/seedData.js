@@ -1,6 +1,6 @@
 const { getCommodityLabels } = require('../utils/normalizers');
 
-const COMMON_CROPS = ['wheat', 'soybean', 'onion', 'paddy', 'tomato', 'potato', 'maize', 'gram'];
+const COMMON_CROPS = ['wheat', 'soybean', 'onion', 'paddy', 'tomato', 'potato', 'maize', 'gram', 'sugarcane'];
 
 const MARKET_SEED = [
     {
@@ -118,6 +118,7 @@ const COMMODITY_CONFIG = {
     soybean: { arrivalBase: 390, basePrice: 4470, spread: 120, slope: 28 },
     tomato: { arrivalBase: 610, basePrice: 1640, spread: 140, slope: 26 },
     wheat: { arrivalBase: 440, basePrice: 2650, spread: 85, slope: 20 },
+    sugarcane: { arrivalBase: 800, basePrice: 480, spread: 40, slope: 5 },
 };
 
 function buildPriceDocs(days = 24) {
