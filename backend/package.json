@@ -5,7 +5,15 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "fetch:official": "node scripts/fetchSources.js official",
+    "fetch:public": "node scripts/fetchSources.js public_staging",
+    "fetch:weather": "node scripts/fetchSources.js weather",
+    "fetch:all": "node scripts/fetchSources.js all",
     "import:csv": "node scripts/importCsv.js",
+    "import:downloads": "node scripts/importDownloads.js",
+    "certify:data": "node scripts/certifyData.js",
+    "backfill:weather": "node scripts/backfillWeather.js",
+    "seed:demo": "node seed_db.js",
     "test": "node --check index.js && node --check routes/api.js"
   },
   "keywords": [

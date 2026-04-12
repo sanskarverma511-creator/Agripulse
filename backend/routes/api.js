@@ -8,8 +8,10 @@ const {
     getDashboardSummary,
     getDistricts,
     getForecast,
+    getMarkets,
     getMarketDetail,
     getRecommendation,
+    searchForecasts,
     getStates,
 } = require('../services/platformService');
 
@@ -39,6 +41,14 @@ router.get('/districts', asyncRoute(async (req, res) => {
 
 router.get('/commodities', asyncRoute(async (req, res) => {
     res.json(await getCommodities(req.query.state));
+}));
+
+router.get('/markets', asyncRoute(async (req, res) => {
+    res.json(await getMarkets(req.query));
+}));
+
+router.post('/forecast/search', asyncRoute(async (req, res) => {
+    res.json(await searchForecasts(req.body));
 }));
 
 router.post('/recommendations', asyncRoute(async (req, res) => {

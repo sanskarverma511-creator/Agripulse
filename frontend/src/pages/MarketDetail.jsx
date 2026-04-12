@@ -44,7 +44,8 @@ const MarketDetail = () => {
   const { search } = useLocation();
   const { t } = useI18n();
   const params = useMemo(() => new URLSearchParams(search), [search]);
-  const commodity = params.get('commodity') || 'wheat';
+  const commodity = params.get('commodity') || '';
+  const horizon = params.get('horizon') || '7';
   const quantity = params.get('quantity') || '';
   const transportCostPerKm = params.get('transportCostPerKm') || '';
   const [detail, setDetail] = useState(null);
@@ -56,26 +57,29 @@ const MarketDetail = () => {
     const loadDetail = async () => {
       try {
         setLoading(true);
+        if (!commodity) {
+          throw new Error('Commodity is required for market detail.');
+        }
         const [detailResponse, forecastResponse] = await Promise.all([
           api.get(`/api/markets/${id}`, {
-            params: { commodity, quantity, transportCostPerKm },
+            params: { commodity, horizon, quantity, transportCostPerKm },
           }),
           api.get(`/api/markets/${id}/forecast`, {
-            params: { commodity, quantity, transportCostPerKm },
+            params: { commodity, horizon, quantity, transportCostPerKm },
           }),
         ]);
 
         setDetail(detailResponse.data);
         setForecast(forecastResponse.data);
       } catch (err) {
-        setError(err.response?.data?.error || t('errorLoading'));
+        setError(err.response?.data?.error || err.message || t('errorLoading'));
       } finally {
         setLoading(false);
       }
     };
 
     loadDetail();
-  }, [id, commodity, quantity, transportCostPerKm, t]);
+  }, [id, commodity, horizon, quantity, transportCostPerKm, t]);
 
   if (loading) {
     return (
@@ -150,9 +154,9 @@ const MarketDetail = () => {
             <p className="mt-2 text-2xl font-black text-slate-900">{formatCurrency(forecast?.profitEstimate?.netReturn)}</p>
           </div>
           <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-sm text-slate-500">Weather</p>
-            <p className="mt-2 text-2xl font-black text-slate-900">{weatherSummary?.conditionLabel || 'Unavailable'}</p>
-            <p className="mt-1 text-sm text-slate-500">{formatTempBand(weatherSummary?.current)}</p>
+            <p className="text-sm text-slate-500">Model</p>
+            <p className="mt-2 text-2xl font-black text-slate-900">{forecast?.model?.modelName || 'Unavailable'}</p>
+            <p className="mt-1 text-sm text-slate-500">{forecast?.model?.inferenceEngine || '--'}</p>
           </div>
         </div>
       </section>
@@ -197,6 +201,7 @@ const MarketDetail = () => {
               <p>Average forecast: <span className="font-semibold text-slate-900">{formatCurrency(forecast?.summary?.averageForecastPrice)}</span></p>
               <p>Best sell day: <span className="font-semibold text-slate-900">{forecast?.summary?.bestSellDay?.forecastDate}</span></p>
               <p>Expected change: <span className="font-semibold text-slate-900">{forecast?.summary?.expectedChangePercent}%</span></p>
+              <p>Data mode: <span className="font-semibold text-slate-900">{forecast?.dataSource?.mode || detail?.dataSource?.mode || '--'}</span></p>
             </div>
           </div>
 
@@ -219,7 +224,7 @@ const MarketDetail = () => {
 
       <section className="glass-panel p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl font-bold text-slate-800">7-day weather outlook</h2>
+          <h2 className="text-2xl font-bold text-slate-800">{forecast?.forecastHorizon || horizon}-day weather outlook</h2>
           <span className={`px-4 py-2 rounded-full text-sm font-semibold ${weatherImpactClass(detail?.weatherImpactLabel)}`}>
             {detail?.weatherImpactLabel || 'Unavailable'}
           </span>

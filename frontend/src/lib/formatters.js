@@ -12,6 +12,12 @@ export const formatNumber = (value) => {
   return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value);
 };
 
+const humanizeCommodity = (commodity) => String(commodity || '')
+  .split('-')
+  .filter(Boolean)
+  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+  .join(' ');
+
 export const commodityLabel = (commodity, language = 'en') => {
   const labels = {
     gram: { en: 'Gram', hi: '\u091a\u0928\u093e' },
@@ -25,7 +31,7 @@ export const commodityLabel = (commodity, language = 'en') => {
     sugarcane: { en: 'Sugarcane', hi: '\u0917\u0928\u094d\u0928\u093e' },
   };
 
-  return labels[commodity]?.[language] || commodity;
+  return labels[commodity]?.[language] || humanizeCommodity(commodity);
 };
 
 export const riskClass = (riskLevel) => {

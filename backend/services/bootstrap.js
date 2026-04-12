@@ -3,18 +3,35 @@ const { getSeedPayload } = require('../data/seedData');
 async function ensureIndexes(db) {
     await db.collection('markets').createIndex({ state: 1, district: 1, name: 1 });
     await db.collection('daily_prices').createIndex({ marketId: 1, commodity: 1, date: -1 });
+    await db.collection('daily_prices').createIndex({ equivalenceKey: 1 }, { unique: true, sparse: true });
     await db.collection('daily_prices').createIndex(
         { marketId: 1, commodity: 1, date: 1, source: 1 },
         { unique: true },
     );
+    await db.collection('staging_daily_prices').createIndex({ equivalenceKey: 1 }, { unique: true, sparse: true });
+    await db.collection('staging_daily_prices').createIndex({ approvalStatus: 1, sourceType: 1, commodity: 1 });
     await db.collection('forecasts').createIndex({ marketId: 1, commodity: 1, forecastDate: 1 });
     await db.collection('alerts').createIndex({ commodity: 1, state: 1, district: 1, status: 1 });
     await db.collection('model_versions').createIndex({ commodity: 1, taskType: 1, isActive: 1 });
     await db.collection('weather_snapshots').createIndex({ marketId: 1 }, { unique: true });
     await db.collection('weather_snapshots').createIndex({ state: 1, district: 1, fetchedAt: -1 });
+    await db.collection('weather_history').createIndex({ marketId: 1, date: -1 });
+    await db.collection('weather_history').createIndex({ equivalenceKey: 1 }, { unique: true, sparse: true });
+    await db.collection('weather_history').createIndex(
+        { marketId: 1, date: 1, source: 1 },
+        { unique: true },
+    );
+    await db.collection('staging_weather_history').createIndex({ equivalenceKey: 1 }, { unique: true, sparse: true });
+    await db.collection('staging_weather_history').createIndex({ approvalStatus: 1, sourceType: 1, date: -1 });
+    await db.collection('import_runs').createIndex({ createdAt: -1 });
+    await db.collection('ingest_batches').createIndex({ createdAt: -1, kind: 1 });
+    await db.collection('ingest_files').createIndex({ checksum: 1 }, { unique: true, sparse: true });
+    await db.collection('ingest_files').createIndex({ importStatus: 1, sourceType: 1, createdAt: -1 });
+    await db.collection('quarantine_rows').createIndex({ createdAt: -1, sourceType: 1 });
+    await db.collection('certification_runs').createIndex({ createdAt: -1 });
 }
 
-async function syncSeedData(db) {
+async function seedDemoData(db) {
     const seed = getSeedPayload();
     const activeModelIds = seed.modelVersions.map((modelVersion) => modelVersion._id);
     const activeCommodities = [...new Set(seed.modelVersions.map((modelVersion) => modelVersion.commodity))];
@@ -92,10 +109,22 @@ async function syncSeedData(db) {
 
 async function ensurePlatformReady(db) {
     await ensureIndexes(db);
-    return syncSeedData(db);
+    const [marketCount, priceCount, importRunCount] = await Promise.all([
+        db.collection('markets').countDocuments(),
+        db.collection('daily_prices').countDocuments(),
+        db.collection('import_runs').countDocuments(),
+    ]);
+
+    return {
+        importRunCount,
+        marketCount,
+        priceCount,
+        seeded: false,
+    };
 }
 
 module.exports = {
     ensureIndexes,
     ensurePlatformReady,
+    seedDemoData,
 };

@@ -1,10 +1,10 @@
 import json
 import logging
 import math
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from statistics import mean, pstdev
+from typing import Any
 
 import joblib
 import pandas as pd
@@ -17,8 +17,8 @@ import pipeline
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-STRATEGY_NAME = "historical-weather-v2"
-AVAILABLE_MODELS = [
+STRATEGY_NAME = "academic-multi-model-v1"
+DEFAULT_COMMODITIES = [
     "gram",
     "maize",
     "onion",
@@ -29,6 +29,32 @@ AVAILABLE_MODELS = [
     "tomato",
     "wheat",
 ]
+EXCLUDED_MSP_COMMODITIES = {
+    "barley",
+    "bajra",
+    "copra",
+    "cotton",
+    "de-husked-coconut",
+    "gram",
+    "groundnut",
+    "jowar",
+    "jute",
+    "maize",
+    "masur",
+    "moong",
+    "nigerseed",
+    "paddy",
+    "ragi",
+    "rapeseed-mustard",
+    "safflower",
+    "sesamum",
+    "soybean",
+    "sunflower-seed",
+    "toria",
+    "tur",
+    "urad",
+    "wheat",
+}
 
 CROP_WEATHER_RULES = {
     "gram": {
@@ -97,28 +123,114 @@ CROP_WEATHER_RULES = {
 }
 
 MODELS_DIR = Path(__file__).parent.parent / "models"
+RF_FALLBACK_FEATURE_COLUMNS = [
+    "price_lag_1",
+    "price_lag_3",
+    "price_lag_7",
+    "price_roll_mean_3",
+    "price_roll_mean_7",
+    "price_roll_mean_30",
+    "price_spread",
+    "arrival_qty",
+    "day_of_week",
+    "month",
+    "day_of_year",
+    "humidity",
+    "precipitationMm",
+    "temperatureMax",
+    "temperatureMin",
+]
 
 
 class ModelManager:
     def __init__(self, models_dir: Path):
         self.models_dir = models_dir
-        self.models: dict[str, any] = {}
+        self.bundles: dict[str, dict[str, Any]] = {}
+        self.available_commodities: list[str] = []
         self.load_models()
 
+    def _fallback_metadata(self, commodity: str, model_name: str = "heuristic") -> dict[str, Any]:
+        return {
+            "bestModel": {
+                "modelName": model_name,
+                "status": "fallback",
+            },
+            "commodity": commodity,
+            "models": [
+                {
+                    "artifactPath": None,
+                    "metrics": None,
+                    "modelName": model_name,
+                    "status": "available" if model_name != "heuristic" else "fallback",
+                }
+            ],
+            "strategy": STRATEGY_NAME,
+            "trainedAt": None,
+        }
+
     def load_models(self):
-        for commodity in AVAILABLE_MODELS:
-            model_path = self.models_dir / commodity / f"{commodity}_model.pkl"
+        commodity_names = set(DEFAULT_COMMODITIES)
+        if self.models_dir.exists():
+            commodity_names.update(
+                path.name for path in self.models_dir.iterdir() if path.is_dir()
+            )
+
+        for commodity in sorted(commodity_names):
+            if commodity in EXCLUDED_MSP_COMMODITIES:
+                continue
+            bundle = {
+                "artifacts": {},
+                "commodity": commodity,
+                "metadata": self._fallback_metadata(commodity),
+            }
+            commodity_dir = self.models_dir / commodity
+            metadata_path = commodity_dir / "metadata.json"
+            if metadata_path.exists():
+                try:
+                    bundle["metadata"] = json.loads(metadata_path.read_text(encoding="utf-8"))
+                except Exception as exc:
+                    logger.warning("Failed to load metadata for %s: %s", commodity, exc)
+
+            rf_path = commodity_dir / "random_forest.pkl"
+            if rf_path.exists():
+                try:
+                    bundle["artifacts"]["random_forest"] = joblib.load(rf_path)
+                except Exception as exc:
+                    logger.warning("Failed to load Random Forest for %s: %s", commodity, exc)
+
+            model_path = commodity_dir / f"{commodity}_model.pkl"
             if model_path.exists():
                 try:
-                    self.models[commodity] = joblib.load(model_path)
-                    logger.info(f"Loaded model for {commodity}")
-                except Exception as e:
-                    logger.error(f"Failed to load model for {commodity}: {e}")
-            else:
-                logger.warning(f"No model found for {commodity} at {model_path}")
+                    bundle["artifacts"]["legacy_lightgbm"] = joblib.load(model_path)
+                    if bundle["metadata"]["bestModel"]["modelName"] == "heuristic":
+                        bundle["metadata"] = self._fallback_metadata(commodity, "legacy_lightgbm")
+                except Exception as exc:
+                    logger.warning("Failed to load legacy model for %s: %s", commodity, exc)
 
-    def get_model(self, commodity: str):
-        return self.models.get(commodity)
+            self.bundles[commodity] = bundle
+
+        self.available_commodities = sorted(self.bundles.keys())
+
+    def get_bundle(self, commodity: str):
+        return self.bundles.get(
+            commodity,
+            {"artifacts": {}, "commodity": commodity, "metadata": self._fallback_metadata(commodity)},
+        )
+
+    def list_models(self) -> list[dict[str, Any]]:
+        rows = []
+        for commodity in self.available_commodities:
+            bundle = self.get_bundle(commodity)
+            rows.append(
+                {
+                    "commodity": commodity,
+                    "models": _model_comparison(bundle),
+                    "pipelineHealth": bundle.get("metadata", {}).get("pipelineHealth"),
+                    "trainedAt": bundle.get("metadata", {}).get("trainedAt"),
+                    "trainingData": bundle.get("metadata", {}).get("trainingData"),
+                }
+            )
+        return rows
 
 
 model_manager = ModelManager(MODELS_DIR)
@@ -132,6 +244,7 @@ class HistoryPoint(BaseModel):
     maxPrice: float
     minPrice: float
     modalPrice: float
+    source: str | None = None
 
 
 class WeatherPoint(BaseModel):
@@ -179,6 +292,7 @@ class PredictRequest(BaseModel):
     commodity: str
     district: str
     farmLocationText: str = ""
+    horizon: int = 7
     quantity: float | None = None
     state: str
     transportCostPerKm: float | None = None
@@ -189,6 +303,7 @@ class ForecastRequest(BaseModel):
     district: str
     estimatedDistanceKm: float = 24
     history: list[HistoryPoint]
+    horizon: int = 7
     marketId: str
     marketName: str
     quantity: float | None = None
@@ -199,6 +314,11 @@ class ForecastRequest(BaseModel):
 
 def _clamp(value: float, minimum: float, maximum: float) -> float:
     return max(minimum, min(value, maximum))
+
+
+def _validate_commodity_allowed(commodity: str) -> None:
+    if commodity in EXCLUDED_MSP_COMMODITIES:
+        raise ValueError("This commodity is MSP-governed and is excluded from AgriPulse forecasting.")
 
 
 def _mean(values: list[float]) -> float:
@@ -440,6 +560,129 @@ def _effective_volatility_ratio(base_ratio: float, weather_signal: dict) -> floa
     return max(base_ratio - (score * 0.01), 0.0)
 
 
+def _model_report(bundle: dict[str, Any], model_name: str | None = None) -> dict[str, Any]:
+    metadata = bundle.get("metadata", {})
+    models = metadata.get("models", [])
+    target_name = model_name or metadata.get("bestModel", {}).get("modelName") or "heuristic"
+    report = next((item for item in models if item.get("modelName") == target_name), None)
+    return report or {
+        "artifactPath": None,
+        "metrics": None,
+        "modelName": target_name,
+        "status": "fallback",
+    }
+
+
+def _model_comparison(bundle: dict[str, Any]) -> list[dict]:
+    selected_name = bundle.get("metadata", {}).get("bestModel", {}).get("modelName")
+    return [
+        {
+            "artifactPath": report.get("artifactPath"),
+            "isSelected": report.get("modelName") == selected_name,
+            "metrics": report.get("metrics"),
+            "modelName": report.get("modelName"),
+            "status": report.get("status"),
+        }
+        for report in bundle.get("metadata", {}).get("models", [])
+    ]
+
+
+def _build_model_card(bundle: dict[str, Any], inference_engine: str) -> dict:
+    report = _model_report(bundle)
+    model_name = report.get("modelName", "heuristic")
+    return {
+        "artifactPath": report.get("artifactPath"),
+        "inferenceEngine": inference_engine,
+        "metrics": report.get("metrics"),
+        "modelName": model_name,
+        "strategy": bundle.get("metadata", {}).get("strategy", STRATEGY_NAME),
+        "trainedAt": bundle.get("metadata", {}).get("trainedAt"),
+        "versionId": f"{bundle.get('commodity', 'commodity')}-forecast-{model_name}",
+    }
+
+
+def _runtime_weather_features(weather: WeatherSummary | None) -> dict[str, float]:
+    window = weather.window if weather and weather.window else None
+    current = weather.current if weather and weather.current else None
+    return {
+        "humidity": float(
+            (window.averageHumidity if window and window.averageHumidity is not None else None)
+            or (current.humidity if current and current.humidity is not None else 0.0)
+        ),
+        "precipitationMm": float(
+            (window.totalPrecipitation if window and window.totalPrecipitation is not None else 0.0)
+        ),
+        "temperatureMax": float(
+            (window.averageMaxTemp if window and window.averageMaxTemp is not None else None)
+            or (current.temperatureMax if current and current.temperatureMax is not None else 0.0)
+        ),
+        "temperatureMin": float(
+            (window.averageMinTemp if window and window.averageMinTemp is not None else None)
+            or (current.temperatureMin if current and current.temperatureMin is not None else 0.0)
+        ),
+    }
+
+
+def _prepare_feature_frame(history: list[HistoryPoint], market_id: str, weather: WeatherSummary | None) -> pd.DataFrame:
+    weather_features = _runtime_weather_features(weather)
+    history_df = pd.DataFrame(
+        [
+            {
+                "arrival_qty": point.arrivalQty,
+                "date": point.date,
+                "market": market_id,
+                "Max_Price": point.maxPrice,
+                "Min_Price": point.minPrice,
+                "modal_price": point.modalPrice,
+                **weather_features,
+            }
+            for point in history
+        ]
+    )
+    if history_df.empty:
+        return history_df
+    return pipeline.build_features(history_df)
+
+
+def _predict_bundle_price(
+    bundle: dict[str, Any],
+    history: list[HistoryPoint],
+    market_id: str,
+    weather: WeatherSummary | None,
+) -> tuple[float | None, str]:
+    rf_artifact = bundle.get("artifacts", {}).get("random_forest")
+    if rf_artifact:
+        try:
+            feature_columns = rf_artifact.get("featureColumns") or RF_FALLBACK_FEATURE_COLUMNS
+            feature_frame = _prepare_feature_frame(history, market_id, weather)
+            if not feature_frame.empty:
+                latest = feature_frame.iloc[-1:].copy()
+                for column in feature_columns:
+                    if column not in latest.columns:
+                        latest[column] = 0.0
+                prediction = rf_artifact["model"].predict(latest[feature_columns].fillna(0.0))
+                return float(prediction[0]), "random_forest"
+        except Exception as exc:
+            logger.warning("Random Forest inference failed for %s: %s", bundle.get("commodity"), exc)
+
+    legacy_model = bundle.get("artifacts", {}).get("legacy_lightgbm")
+    if legacy_model:
+        try:
+            feature_columns = list(getattr(legacy_model, "feature_name_", []) or RF_FALLBACK_FEATURE_COLUMNS)
+            feature_frame = _prepare_feature_frame(history, market_id, weather)
+            if not feature_frame.empty:
+                latest = feature_frame.iloc[-1:].copy()
+                for column in feature_columns:
+                    if column not in latest.columns:
+                        latest[column] = 0.0
+                prediction = legacy_model.predict(latest[feature_columns].fillna(0.0))
+                return float(prediction[0]), "legacy_lightgbm"
+        except Exception as exc:
+            logger.warning("Legacy model inference failed for %s: %s", bundle.get("commodity"), exc)
+
+    return None, "heuristic"
+
+
 def _generate_forecast_points(
     commodity: str,
     history: list[HistoryPoint],
@@ -447,6 +690,9 @@ def _generate_forecast_points(
     estimated_distance_km: float | None,
     quantity: float | None,
     transport_cost_per_km: float | None,
+    bundle: dict[str, Any],
+    market_id: str,
+    horizon: int,
 ) -> dict:
     prices = [point.modalPrice for point in history]
     arrivals = [point.arrivalQty for point in history]
@@ -454,37 +700,36 @@ def _generate_forecast_points(
     weather_days = weather_signal["summary"]["daily"]
 
     last_price = prices[-1]
-    rolling3 = _mean(prices[-3:])
     rolling7 = _mean(prices[-7:])
     volatility = _std(prices[-7:]) or max(last_price * 0.02, 50)
-    momentum = last_price - prices[-4] if len(prices) >= 4 else 0
-    avg_arrival = _mean(arrivals[-7:])
-    last_arrival = arrivals[-1]
-    arrival_pressure = ((avg_arrival - last_arrival) / max(avg_arrival, 1)) * 55
-    baseline = (
-        (0.45 * last_price)
-        + (0.3 * rolling3)
-        + (0.25 * rolling7)
-        + arrival_pressure
-        + (weather_signal["adjustment"] * 0.42)
-    )
-    drift = (momentum * 0.2) + (arrival_pressure * 0.15)
+    average_arrival = _mean(arrivals[-7:])
+    forecast_horizon = max(3, min(14, int(horizon or 7)))
 
     last_date = datetime.strptime(history[-1].date, "%Y-%m-%d")
-    current = baseline
+    current_history = list(history)
     forecast_points = []
-    for step in range(1, 8):
+    inference_engine = "heuristic"
+    band = max(60.0, volatility * (1.0 + abs(weather_signal["score"]) * 0.25))
+    for step in range(1, forecast_horizon + 1):
+        predicted_base, inference_engine = _predict_bundle_price(
+            bundle,
+            current_history,
+            market_id,
+            weather,
+        )
+        if predicted_base is None:
+            predicted_base = _heuristic_price(current_history, weather_signal)
         day_weather = weather_days[step - 1] if len(weather_days) >= step else None
         weather_adjustment = _daily_weather_modifier(
             commodity,
             WeatherPoint(**day_weather) if day_weather else None,
         )
-        mean_reversion = (rolling7 - current) * 0.08
-        seasonal = math.sin(step / 2.4) * (volatility * 0.18)
-        predicted = max(100.0, current + drift + mean_reversion + seasonal + weather_adjustment)
-        band = max(60.0, volatility * (1.0 + abs(weather_signal["score"]) * 0.25))
+        mean_reversion = (rolling7 - predicted_base) * 0.06
+        seasonal = math.sin(step / 2.4) * (volatility * 0.16)
+        predicted = max(100.0, predicted_base + mean_reversion + seasonal + weather_adjustment)
+        forecast_date = (last_date + timedelta(days=step)).strftime("%Y-%m-%d")
         point = {
-            "forecastDate": (last_date + timedelta(days=step)).strftime("%Y-%m-%d"),
+            "forecastDate": forecast_date,
             "predictedPrice": round(predicted, 2),
             "lowerBound": round(max(0.0, predicted - band), 2),
             "upperBound": round(predicted + band, 2),
@@ -492,7 +737,16 @@ def _generate_forecast_points(
         if day_weather:
             point.update(day_weather)
         forecast_points.append(point)
-        current = predicted
+        current_history.append(
+            HistoryPoint(
+                arrivalQty=average_arrival,
+                date=forecast_date,
+                maxPrice=round(predicted + (band * 0.45), 2),
+                minPrice=round(max(0.0, predicted - (band * 0.35)), 2),
+                modalPrice=round(predicted, 2),
+                source="generated-forecast",
+            )
+        )
 
     avg_price = _mean([point["predictedPrice"] for point in forecast_points])
     best_day = max(forecast_points, key=lambda point: point["predictedPrice"])
@@ -505,10 +759,13 @@ def _generate_forecast_points(
         else None
     )
     effective_ratio = _effective_volatility_ratio(volatility / max(rolling7, 1), weather_signal)
+    model_card = _build_model_card(bundle, inference_engine)
 
     return {
         "confidenceLabel": _confidence_label(len(history), effective_ratio),
         "forecast": forecast_points,
+        "model": model_card,
+        "modelComparison": _model_comparison(bundle),
         "profitEstimate": {
             "grossRevenue": gross_revenue,
             "netReturn": net_return,
@@ -533,6 +790,7 @@ def _build_explanation(
     predicted_price: float,
     trend_label: str,
     weather_signal: dict,
+    model_card: dict,
 ) -> list[str]:
     last_price = prices[-1]
     rolling7 = _mean(prices[-7:])
@@ -546,12 +804,8 @@ def _build_explanation(
             f"({last_arrival:.0f} vs {avg_arrival:.0f}), which affects price pressure."
         ),
         weather_signal["reason"],
+        f"Primary model selection is {model_card['modelName']} with {model_card['inferenceEngine']} used during serving.",
     ]
-
-    if predicted_price > rolling7:
-        explanations.append("Recent momentum and market conditions support a stronger selling window.")
-    else:
-        explanations.append("Price momentum is moderating, so the forecast favors stable rather than aggressive upside.")
 
     return explanations[:5]
 
@@ -561,11 +815,13 @@ def _score_candidate(
     commodity: str,
     quantity: float | None,
     transport_cost_per_km: float | None,
+    horizon: int,
 ) -> dict:
     history = candidate.history
     if len(history) < 5:
         raise ValueError(f"Insufficient history for market {candidate.marketName}")
 
+    bundle = model_manager.get_bundle(commodity)
     prices = [point.modalPrice for point in history]
     arrivals = [point.arrivalQty for point in history]
     last_price = prices[-1]
@@ -577,36 +833,12 @@ def _score_candidate(
     last_arrival = arrivals[-1]
     arrival_adjustment = ((avg_arrival - last_arrival) / max(avg_arrival, 1)) * 70
     weather_signal = _analyze_weather(commodity, candidate.weather)
-    
-    # Try ML model first
-    model = model_manager.get_model(commodity)
-    ml_predicted_price = None
-    
-    if model:
-        try:
-            # Convert history to DataFrame for feature engineering
-            history_df = pd.DataFrame([p.model_dump() for p in history])
-            # Rename columns to match training pipeline
-            history_df = history_df.rename(columns={
-                "arrivalQty": "arrival_qty",
-                "modalPrice": "modal_price",
-                "maxPrice": "Max_Price",
-                "minPrice": "Min_Price"
-            })
-            history_df["market"] = candidate.marketId
-            
-            features = pipeline.build_features(history_df)
-            if not features.empty:
-                # Use the latest feature row for prediction
-                latest_features = features.iloc[-1:]
-                # Select only the features the model was trained on
-                # (Assuming the model only uses the engineered features)
-                # For LGBM, we can pass the whole DF if it matches training columns
-                prediction = model.predict(latest_features)
-                ml_predicted_price = float(prediction[0])
-                logger.info(f"ML prediction for {commodity} in {candidate.marketName}: {ml_predicted_price}")
-        except Exception as e:
-            logger.warning(f"ML inference failed for {commodity}: {e}")
+    ml_predicted_price, inference_engine = _predict_bundle_price(
+        bundle,
+        history,
+        candidate.marketId,
+        candidate.weather,
+    )
 
     # Heuristic baseline
     heuristic_price = (
@@ -620,6 +852,7 @@ def _score_candidate(
     
     # Combined prediction (favor ML if available)
     predicted_price = ml_predicted_price if ml_predicted_price is not None else heuristic_price
+    model_card = _build_model_card(bundle, inference_engine)
 
     transport_cost = _transport_cost(transport_cost_per_km, candidate.estimatedDistanceKm)
     gross_revenue = round(predicted_price * quantity, 2) if quantity is not None else None
@@ -637,6 +870,9 @@ def _score_candidate(
         candidate.estimatedDistanceKm,
         quantity,
         transport_cost_per_km,
+        bundle,
+        candidate.marketId,
+        horizon,
     )
 
     return {
@@ -650,11 +886,14 @@ def _score_candidate(
             predicted_price,
             trend_label,
             weather_signal,
+            model_card,
         ),
         "forecastSummary": forecast_snapshot["summary"],
         "grossRevenue": gross_revenue,
         "marketId": candidate.marketId,
         "marketName": candidate.marketName,
+        "model": forecast_snapshot["model"],
+        "modelComparison": forecast_snapshot["modelComparison"],
         "netReturn": net_return,
         "predictedPrice": round(predicted_price, 2),
         "recentTrend": trend_label,
@@ -668,11 +907,18 @@ def _score_candidate(
 @app.post("/predict")
 def predict(request: PredictRequest):
     try:
+        _validate_commodity_allowed(request.commodity)
         if not request.candidates:
             raise ValueError("At least one candidate market is required.")
 
         scored_markets = [
-            _score_candidate(candidate, request.commodity, request.quantity, request.transportCostPerKm)
+            _score_candidate(
+                candidate,
+                request.commodity,
+                request.quantity,
+                request.transportCostPerKm,
+                request.horizon,
+            )
             for candidate in request.candidates
         ]
         scored_markets.sort(key=lambda market: market["predictedPrice"], reverse=True)
@@ -684,6 +930,8 @@ def predict(request: PredictRequest):
             "confidenceLabel": best_market["confidenceLabel"],
             "explanation": best_market["explanation"],
             "forecastSummary": best_market["forecastSummary"],
+            "model": best_market["model"],
+            "modelComparison": best_market["modelComparison"],
             "predictedPrice": best_market["predictedPrice"],
             "riskLevel": best_market["riskLevel"],
             "topMarkets": scored_markets[:5],
@@ -701,6 +949,7 @@ def predict(request: PredictRequest):
 @app.post("/forecast")
 def forecast(request: ForecastRequest):
     try:
+        _validate_commodity_allowed(request.commodity)
         if len(request.history) < 5:
             raise ValueError("At least 5 historical data points are required for forecasting.")
 
@@ -711,6 +960,9 @@ def forecast(request: ForecastRequest):
             request.estimatedDistanceKm,
             request.quantity,
             request.transportCostPerKm,
+            model_manager.get_bundle(request.commodity),
+            request.marketId,
+            request.horizon,
         )
         result["anomalies"] = _build_anomalies(request.history)
         return result
@@ -724,7 +976,8 @@ def forecast(request: ForecastRequest):
 @app.get("/models")
 def list_models():
     return {
-        "available_models": AVAILABLE_MODELS,
+        "available_models": model_manager.available_commodities,
+        "commodities": model_manager.list_models(),
         "strategy": STRATEGY_NAME,
     }
 
@@ -732,7 +985,8 @@ def list_models():
 @app.get("/health")
 def health_check():
     return {
+        "availableModels": model_manager.available_commodities,
+        "service": "agripulse-forecast-model-service",
         "status": "ok",
-        "service": "smart-agri-model-service",
         "strategy": STRATEGY_NAME,
     }

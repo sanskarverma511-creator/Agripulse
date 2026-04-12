@@ -1,6 +1,6 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 
-const { getDb } = require('../config/mongo');
+const { closeMongo, getDb } = require('../config/mongo');
 const { ensureIndexes } = require('../services/bootstrap');
 const { importCsvFiles } = require('../services/etlService');
 
@@ -11,10 +11,14 @@ async function main() {
         process.exit(1);
     }
 
-    const db = await getDb();
-    await ensureIndexes(db);
-    const results = await importCsvFiles(db, files);
-    console.log(JSON.stringify({ imported: results }, null, 2));
+    try {
+        const db = await getDb();
+        await ensureIndexes(db);
+        const results = await importCsvFiles(db, files);
+        console.log(JSON.stringify({ imported: results }, null, 2));
+    } finally {
+        await closeMongo();
+    }
 }
 
 main().catch((error) => {

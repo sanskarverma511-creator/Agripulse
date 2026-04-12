@@ -35,6 +35,7 @@ venv.bak/
 # Build folders
 build/
 output/
+db/data_ingest/
 
 # macOS / Windows
 .DS_Store

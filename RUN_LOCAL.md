@@ -1,6 +1,6 @@
 # Running AgriPulse Locally
 
-This guide explains how to start the AgriPulse (formerly Agricultural-Price-Prediction-System) application on your local machine.
+This guide explains how to start the AgriPulse application in its real-data-first forecasting mode.
 
 ## Recommended Method: Using Docker
 
@@ -19,6 +19,68 @@ The project is already configured with Docker Compose, which is the easiest and 
     - Frontend: `http://localhost:5173`
     - Backend API: `http://localhost:8000`
     - Model Service: `http://localhost:8001`
+
+### Real-data workflow
+The application no longer auto-seeds demo mandi data on startup.
+
+1. Official OGD mandi feeds now work automatically:
+   - `npm run fetch:official` resolves the official `data.gov.in` resource metadata, paginates the live API, and saves local CSV files for import.
+   - For the very large variety-wise historical feed, you can optionally cap the initial download size:
+     ```powershell
+     $env:OGD_VARIETY_MAX_RECORDS="50000"
+     ```
+   - Leave `OGD_VARIETY_MAX_RECORDS` unset if you want to fetch the full history.
+
+2. Configure `backend/data/sourceManifest.local.json` only if you want to add extra public staging or weather CSV/ZIP sources:
+   - Copy `backend/data/sourceManifest.local.example.json` to `backend/data/sourceManifest.local.json`
+   - Replace the sample `downloadUrl` values with real allowlisted public links
+
+3. Fetch configured source files:
+   ```powershell
+   cd backend
+   npm run fetch:all
+   ```
+
+4. Import downloaded files into certified/staging collections:
+   ```powershell
+   npm run import:downloads
+   ```
+
+5. Promote approved staging rows into the certified serving/training collections:
+   ```powershell
+   npm run certify:data
+   ```
+
+6. Backfill historical weather for imported markets:
+   ```powershell
+   npm run backfill:weather
+   ```
+
+7. You can still import local mandi CSV files into MongoDB directly:
+   ```powershell
+   npm run import:csv -- C:\path\to\file1.csv C:\path\to\file2.csv
+   ```
+
+8. Train comparison models after import/certification:
+   ```powershell
+   cd ..\model_service
+   python train_models.py
+   ```
+9. Open the frontend and run forecasts from the imported states, districts, commodities, and mandis.
+
+### Optional demo seed
+If you need a controlled demo dataset, run:
+```powershell
+cd backend
+npm run seed:demo
+```
+
+If you are using Docker only and want demo options to appear immediately, run:
+```powershell
+docker compose exec backend npm run seed:demo
+```
+
+If the state dropdown shows no options, that means MongoDB currently has no imported/demo mandi data yet.
 
 ---
 

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "public-market-mirror",
+    "name": "Public Staging Mandi Mirror",
+    "sourceType": "public_staging",
+    "category": "price",
+    "catalogUrl": "https://example.com/public-mirror",
+    "downloadUrl": "https://example.com/public-mirror.csv",
+    "formatHint": "csv_or_zip"
+  },
+  {
+    "id": "approved-public-weather",
+    "name": "Public Historical Weather CSV",
+    "sourceType": "public_weather",
+    "category": "weather",
+    "catalogUrl": "https://example.com/weather-catalog",
+    "downloadUrl": "https://example.com/weather-history.zip",
+    "formatHint": "csv_or_zip"
+  }
+]
