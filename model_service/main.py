@@ -601,6 +601,31 @@ def _build_model_card(bundle: dict[str, Any], inference_engine: str) -> dict:
     }
 
 
+def _heuristic_price(history: list[HistoryPoint], weather_signal: dict) -> float:
+    prices = [point.modalPrice for point in history]
+    if not prices:
+        return 100.0
+
+    arrivals = [point.arrivalQty for point in history]
+    last_price = prices[-1]
+    rolling3 = _mean(prices[-3:])
+    rolling7 = _mean(prices[-7:])
+    momentum = last_price - prices[-4] if len(prices) >= 4 else 0.0
+    avg_arrival = _mean(arrivals[-7:])
+    last_arrival = arrivals[-1] if arrivals else 0.0
+    arrival_adjustment = ((avg_arrival - last_arrival) / max(avg_arrival, 1)) * 70 if arrivals else 0.0
+
+    projected_price = (
+        (0.45 * last_price)
+        + (0.25 * rolling3)
+        + (0.2 * rolling7)
+        + (0.1 * (last_price + momentum))
+        + arrival_adjustment
+        + weather_signal["adjustment"]
+    )
+    return max(100.0, round(projected_price, 2))
+
+
 def _runtime_weather_features(weather: WeatherSummary | None) -> dict[str, float]:
     window = weather.window if weather and weather.window else None
     current = weather.current if weather and weather.current else None
@@ -825,13 +850,9 @@ def _score_candidate(
     prices = [point.modalPrice for point in history]
     arrivals = [point.arrivalQty for point in history]
     last_price = prices[-1]
-    rolling3 = _mean(prices[-3:])
     rolling7 = _mean(prices[-7:])
-    momentum = last_price - prices[-4] if len(prices) >= 4 else 0
     volatility = _std(prices[-7:]) or max(last_price * 0.02, 50)
-    avg_arrival = _mean(arrivals[-7:])
     last_arrival = arrivals[-1]
-    arrival_adjustment = ((avg_arrival - last_arrival) / max(avg_arrival, 1)) * 70
     weather_signal = _analyze_weather(commodity, candidate.weather)
     ml_predicted_price, inference_engine = _predict_bundle_price(
         bundle,
@@ -840,15 +861,7 @@ def _score_candidate(
         candidate.weather,
     )
 
-    # Heuristic baseline
-    heuristic_price = (
-        (0.45 * last_price)
-        + (0.25 * rolling3)
-        + (0.2 * rolling7)
-        + (0.1 * (last_price + momentum))
-        + arrival_adjustment
-        + weather_signal["adjustment"]
-    )
+    heuristic_price = _heuristic_price(history, weather_signal)
     
     # Combined prediction (favor ML if available)
     predicted_price = ml_predicted_price if ml_predicted_price is not None else heuristic_price
