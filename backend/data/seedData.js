@@ -19,26 +19,55 @@ function buildMarketSeedEntry(prefix, districtCode, serial, state, district, nam
 }
 
 const MARKET_SEED = [
+    // Madhya Pradesh
     buildMarketSeedEntry('mp', 'BPL', 1, 'Madhya Pradesh', 'Bhopal', 'Bhopal Krishi Upaj Mandi', 23.2599, 77.4126, 18, 45),
-    buildMarketSeedEntry('mp', 'BPL', 2, 'Madhya Pradesh', 'Bhopal', 'Karond Farmer Market', 23.2815, 77.4011, 24, 85),
     buildMarketSeedEntry('mp', 'SEH', 1, 'Madhya Pradesh', 'Sehore', 'Sehore Agri Trade Yard', 23.2038, 77.0844, 31, 58),
     buildMarketSeedEntry('mp', 'VID', 1, 'Madhya Pradesh', 'Vidisha', 'Vidisha Produce Market', 23.5236, 77.8061, 27, 39),
     buildMarketSeedEntry('mp', 'IDR', 1, 'Madhya Pradesh', 'Indore', 'Indore Chhawani Mandi', 22.7196, 75.8577, 22, 130),
-    buildMarketSeedEntry('mp', 'IDR', 2, 'Madhya Pradesh', 'Indore', 'Lasudia Produce Exchange', 22.7521, 75.9027, 28, 70),
     buildMarketSeedEntry('mp', 'UJN', 1, 'Madhya Pradesh', 'Ujjain', 'Ujjain Grain and Veg Market', 23.1765, 75.7885, 29, 64),
     buildMarketSeedEntry('mp', 'DWS', 1, 'Madhya Pradesh', 'Dewas', 'Dewas Kisan Mandi', 22.9659, 76.0553, 26, 54),
     buildMarketSeedEntry('mp', 'GWL', 1, 'Madhya Pradesh', 'Gwalior', 'Gwalior Lashkar Mandi', 26.2183, 78.1828, 33, 77),
     buildMarketSeedEntry('mp', 'JBP', 1, 'Madhya Pradesh', 'Jabalpur', 'Jabalpur Adhartal Agri Yard', 23.1815, 79.9864, 30, 68),
+
+    // Chhattisgarh
     buildMarketSeedEntry('cg', 'RPR', 1, 'Chhattisgarh', 'Raipur', 'Raipur Kisan Bazaar', 21.2514, 81.6296, 20, 60),
-    buildMarketSeedEntry('cg', 'RPR', 2, 'Chhattisgarh', 'Raipur', 'Abhanpur Agri Yard', 21.0522, 81.7456, 33, 25),
     buildMarketSeedEntry('cg', 'DRG', 1, 'Chhattisgarh', 'Durg', 'Durg Krishi Mandi', 21.1904, 81.2849, 19, 10),
-    buildMarketSeedEntry('cg', 'DRG', 2, 'Chhattisgarh', 'Durg', 'Bhilai Produce Hub', 21.1938, 81.3509, 26, 42),
     buildMarketSeedEntry('cg', 'BSP', 1, 'Chhattisgarh', 'Bilaspur', 'Bilaspur Krishi Upaj Market', 22.0797, 82.1409, 28, 48),
     buildMarketSeedEntry('cg', 'KRB', 1, 'Chhattisgarh', 'Korba', 'Korba Fresh Produce Yard', 22.3595, 82.7501, 34, 37),
     buildMarketSeedEntry('cg', 'RJN', 1, 'Chhattisgarh', 'Rajnandgaon', 'Rajnandgaon Farmer Mandi', 21.0974, 81.0337, 24, 29),
     buildMarketSeedEntry('cg', 'JDP', 1, 'Chhattisgarh', 'Jagdalpur', 'Jagdalpur Tribal Produce Market', 19.0748, 82.0080, 36, 56),
     buildMarketSeedEntry('cg', 'DMT', 1, 'Chhattisgarh', 'Dhamtari', 'Dhamtari Paddy and Veg Yard', 20.7074, 81.5497, 22, 31),
     buildMarketSeedEntry('cg', 'MHS', 1, 'Chhattisgarh', 'Mahasamund', 'Mahasamund Kisan Trade Hub', 21.1097, 82.0971, 27, 34),
+
+    // Maharashtra
+    buildMarketSeedEntry('mh', 'PUN', 1, 'Maharashtra', 'Pune', 'Pune Central Mandi', 18.5204, 73.8567, 15, 80),
+    buildMarketSeedEntry('mh', 'NSK', 1, 'Maharashtra', 'Nashik', 'Nashik Onion Trading Yard', 19.9975, 73.7898, 25, 95),
+    buildMarketSeedEntry('mh', 'NAG', 1, 'Maharashtra', 'Nagpur', 'Nagpur Orange and Grain Market', 21.1458, 79.0882, 30, 40),
+    buildMarketSeedEntry('mh', 'AUR', 1, 'Maharashtra', 'Aurangabad', 'Aurangabad Krishi Bazaar', 19.8762, 75.3433, 22, 55),
+    buildMarketSeedEntry('mh', 'SOL', 1, 'Maharashtra', 'Solapur', 'Solapur Pulse Exchange', 17.6599, 75.9064, 35, 65),
+    buildMarketSeedEntry('mh', 'AMR', 1, 'Maharashtra', 'Amravati', 'Amravati Cotton and Grain Yard', 20.9320, 77.7523, 28, 50),
+    buildMarketSeedEntry('mh', 'KOL', 1, 'Maharashtra', 'Kolhapur', 'Kolhapur Sugarcane Market', 16.7050, 74.2433, 20, 70),
+    buildMarketSeedEntry('mh', 'SAT', 1, 'Maharashtra', 'Satara', 'Satara Local Farmer Market', 17.6805, 73.9803, 32, 45),
+
+    // Rajasthan
+    buildMarketSeedEntry('rj', 'JPR', 1, 'Rajasthan', 'Jaipur', 'Jaipur Muhana Mandi', 26.9124, 75.7873, 12, 60),
+    buildMarketSeedEntry('rj', 'JDH', 1, 'Rajasthan', 'Jodhpur', 'Jodhpur Grain Market', 26.2389, 73.0243, 20, 50),
+    buildMarketSeedEntry('rj', 'KOT', 1, 'Rajasthan', 'Kota', 'Kota Bhamashah Mandi', 25.2138, 75.8648, 18, 75),
+    buildMarketSeedEntry('rj', 'BKN', 1, 'Rajasthan', 'Bikaner', 'Bikaner Wool and Grain Yard', 28.0229, 73.3119, 28, 40),
+    buildMarketSeedEntry('rj', 'AJM', 1, 'Rajasthan', 'Ajmer', 'Ajmer Produce Exchange', 26.4499, 74.6399, 24, 55),
+    buildMarketSeedEntry('rj', 'UDP', 1, 'Rajasthan', 'Udaipur', 'Udaipur Krishi Upaj Mandi', 24.5854, 73.7125, 30, 45),
+    buildMarketSeedEntry('rj', 'ALW', 1, 'Rajasthan', 'Alwar', 'Alwar Mustard and Wheat Yard', 27.5530, 76.6346, 22, 85),
+    buildMarketSeedEntry('rj', 'SGR', 1, 'Rajasthan', 'Sri Ganganagar', 'Ganganagar Grain Market', 29.9038, 73.8772, 35, 90),
+
+    // Uttar Pradesh
+    buildMarketSeedEntry('up', 'LKO', 1, 'Uttar Pradesh', 'Lucknow', 'Lucknow Naveen Galla Mandi', 26.8467, 80.9462, 10, 50),
+    buildMarketSeedEntry('up', 'KNP', 1, 'Uttar Pradesh', 'Kanpur', 'Kanpur Chakarpur Mandi', 26.4499, 80.3319, 15, 65),
+    buildMarketSeedEntry('up', 'VNS', 1, 'Uttar Pradesh', 'Varanasi', 'Varanasi Pahariya Mandi', 25.3176, 82.9739, 20, 70),
+    buildMarketSeedEntry('up', 'AGR', 1, 'Uttar Pradesh', 'Agra', 'Agra Etmadpur Mandi', 27.1767, 78.0081, 18, 60),
+    buildMarketSeedEntry('up', 'MRT', 1, 'Uttar Pradesh', 'Meerut', 'Meerut Galla Mandi', 28.9845, 77.7064, 25, 80),
+    buildMarketSeedEntry('up', 'GZB', 1, 'Uttar Pradesh', 'Ghaziabad', 'Ghaziabad Sahibabad Mandi', 28.6692, 77.4538, 12, 110),
+    buildMarketSeedEntry('up', 'BRY', 1, 'Uttar Pradesh', 'Bareilly', 'Bareilly Delapeer Mandi', 28.3670, 79.4304, 22, 45),
+    buildMarketSeedEntry('up', 'GKP', 1, 'Uttar Pradesh', 'Gorakhpur', 'Gorakhpur Mahewa Mandi', 26.7606, 83.3731, 30, 40),
 ];
 
 const COMMODITY_CONFIG = {
@@ -105,6 +134,7 @@ function buildPriceDocs(days = 90) {
 }
 
 function buildModelVersions() {
+    const ALL_STATES = [...new Set(MARKET_SEED.map(m => m.state))];
     return Object.keys(COMMODITY_CONFIG).flatMap((commodity, index) => {
         const labels = getCommodityLabels(commodity);
         return [
@@ -118,7 +148,7 @@ function buildModelVersions() {
                     mape: 5.8 + index * 0.4,
                     rmse: 72 + index * 6,
                 },
-                states: ['Madhya Pradesh', 'Chhattisgarh'],
+                states: ALL_STATES,
                 taskType: 'recommendation',
                 trainedAt: '2026-04-03T09:00:00.000Z',
             },
@@ -132,13 +162,14 @@ function buildModelVersions() {
                     mape: 6.9 + index * 0.5,
                     rmse: 81 + index * 7,
                 },
-                states: ['Madhya Pradesh', 'Chhattisgarh'],
+                states: ALL_STATES,
                 taskType: 'forecast',
                 trainedAt: '2026-04-03T09:30:00.000Z',
             },
         ];
     });
 }
+
 
 function getSeedPayload() {
     const createdAt = new Date().toISOString();
