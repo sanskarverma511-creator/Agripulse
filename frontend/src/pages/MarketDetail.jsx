@@ -15,7 +15,17 @@ import {
 } from 'recharts';
 import { AlertTriangle, ArrowLeft, CloudRain, Droplets, Thermometer } from 'lucide-react';
 import { api } from '../lib/api';
-import { formatCurrency, formatNumber, riskClass } from '../lib/formatters';
+import {
+  formatCurrency,
+  formatDate,
+  formatNumber,
+  getForecastDisplayDate,
+  localizeConfidenceLevel,
+  localizeRiskLevel,
+  localizeTrendLabel,
+  localizeWeatherImpactLabel,
+  riskClass,
+} from '../lib/formatters';
 import { useI18n } from '../context/I18nContext';
 
 const anomalyDot = ({ cx, cy, payload }) => {
@@ -42,7 +52,7 @@ const formatTempBand = (point) => {
 const MarketDetail = () => {
   const { id } = useParams();
   const { search } = useLocation();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const commodity = params.get('commodity') || '';
   const horizon = params.get('horizon') || '7';
@@ -102,18 +112,20 @@ const MarketDetail = () => {
   const weatherAvailable = weatherSummary?.status && weatherSummary.status !== 'unavailable';
   const weatherTimeline = (forecast?.forecast || []).map((point) => ({
     conditionLabel: point.conditionLabel,
-    date: point.forecastDate,
+    date: getForecastDisplayDate(point),
+    displayDate: formatDate(getForecastDisplayDate(point), language),
     humidity: point.humidity,
     precipitationMm: point.precipitationMm,
     temperatureMax: point.temperatureMax,
     temperatureMin: point.temperatureMin,
   }));
+  const bestSellDisplayDate = formatDate(getForecastDisplayDate(forecast?.summary?.bestSellDay), language);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fade-in-up">
       <Link to="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-primary-600">
         <ArrowLeft size={18} />
-        Back
+        {t('back')}
       </Link>
 
       <section className="glass-panel p-8 md:p-10">
@@ -125,13 +137,13 @@ const MarketDetail = () => {
           </div>
           <div className="flex flex-wrap gap-3">
             <span className={`px-4 py-2 rounded-full text-sm font-semibold ${riskClass(detail?.riskLevel)}`}>
-              {t('risk')}: {detail?.riskLevel}
+              {t('risk')}: {localizeRiskLevel(detail?.riskLevel, language)}
             </span>
             <span className="px-4 py-2 rounded-full text-sm font-semibold bg-slate-100 text-slate-700">
-              {t('confidence')}: {detail?.confidenceLabel}
+              {t('confidence')}: {localizeConfidenceLevel(detail?.confidenceLabel, language)}
             </span>
             <span className={`px-4 py-2 rounded-full text-sm font-semibold ${weatherImpactClass(detail?.weatherImpactLabel)}`}>
-              Weather: {detail?.weatherImpactLabel || 'Unavailable'}
+              {t('weather')}: {localizeWeatherImpactLabel(detail?.weatherImpactLabel || 'Unavailable', language)}
             </span>
           </div>
         </div>
@@ -154,8 +166,8 @@ const MarketDetail = () => {
             <p className="mt-2 text-2xl font-black text-slate-900">{formatCurrency(forecast?.profitEstimate?.netReturn)}</p>
           </div>
           <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-sm text-slate-500">Model</p>
-            <p className="mt-2 text-2xl font-black text-slate-900">{forecast?.model?.modelName || 'Unavailable'}</p>
+            <p className="text-sm text-slate-500">{t('model')}</p>
+            <p className="mt-2 text-2xl font-black text-slate-900">{forecast?.model?.modelName || t('unavailable')}</p>
             <p className="mt-1 text-sm text-slate-500">{forecast?.model?.inferenceEngine || '--'}</p>
           </div>
         </div>
@@ -182,7 +194,7 @@ const MarketDetail = () => {
             <h2 className="text-2xl font-bold text-slate-800">{t('forecast')}</h2>
             <div className="h-64 mt-6">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={forecast?.forecast || []}>
+              <AreaChart data={forecast?.forecast || []}>
                   <defs>
                     <linearGradient id="forecastArea" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#22c55e" stopOpacity={0.35} />
@@ -190,7 +202,7 @@ const MarketDetail = () => {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="forecastDate" tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <XAxis dataKey={(point) => formatDate(getForecastDisplayDate(point), language)} tick={{ fill: '#64748b', fontSize: 12 }} />
                   <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
                   <Tooltip />
                   <Area type="monotone" dataKey="predictedPrice" stroke="#16a34a" fill="url(#forecastArea)" strokeWidth={3} />
@@ -198,16 +210,16 @@ const MarketDetail = () => {
               </ResponsiveContainer>
             </div>
             <div className="mt-4 text-sm text-slate-600 space-y-2">
-              <p>Average forecast: <span className="font-semibold text-slate-900">{formatCurrency(forecast?.summary?.averageForecastPrice)}</span></p>
-              <p>Best sell day: <span className="font-semibold text-slate-900">{forecast?.summary?.bestSellDay?.forecastDate}</span></p>
-              <p>Expected change: <span className="font-semibold text-slate-900">{forecast?.summary?.expectedChangePercent}%</span></p>
-              <p>Data mode: <span className="font-semibold text-slate-900">{forecast?.dataSource?.mode || detail?.dataSource?.mode || '--'}</span></p>
+              <p>{t('averageForecast')}: <span className="font-semibold text-slate-900">{formatCurrency(forecast?.summary?.averageForecastPrice)}</span></p>
+              <p>{t('bestSellDay')}: <span className="font-semibold text-slate-900">{bestSellDisplayDate}</span></p>
+              <p>{t('expectedChange')}: <span className="font-semibold text-slate-900">{forecast?.summary?.expectedChangePercent}%</span></p>
+              <p>{t('dataMode')}: <span className="font-semibold text-slate-900">{forecast?.dataSource?.mode || detail?.dataSource?.mode || '--'}</span></p>
             </div>
           </div>
 
           <div className="glass-panel p-7">
             <h2 className="text-2xl font-bold text-slate-800">{t('recentTrend')}</h2>
-            <p className="mt-4 text-slate-600">{detail?.trendLabel}</p>
+            <p className="mt-4 text-slate-600">{localizeTrendLabel(detail?.trendLabel, language)}</p>
             <div className="mt-4 space-y-3">
               {anomalies.length > 0 ? anomalies.map((anomaly) => (
                 <div key={`${anomaly.date}-${anomaly.reason}`} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 flex items-start gap-3">
@@ -224,9 +236,9 @@ const MarketDetail = () => {
 
       <section className="glass-panel p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl font-bold text-slate-800">{forecast?.forecastHorizon || horizon}-day weather outlook</h2>
+          <h2 className="text-2xl font-bold text-slate-800">{forecast?.forecastHorizon || horizon}{language === 'hi' ? '-दिन' : '-day'} {t('weatherOutlook')}</h2>
           <span className={`px-4 py-2 rounded-full text-sm font-semibold ${weatherImpactClass(detail?.weatherImpactLabel)}`}>
-            {detail?.weatherImpactLabel || 'Unavailable'}
+            {localizeWeatherImpactLabel(detail?.weatherImpactLabel || 'Unavailable', language)}
           </span>
         </div>
 
@@ -235,8 +247,8 @@ const MarketDetail = () => {
             <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-7 gap-3">
               {weatherTimeline.map((point) => (
                 <div key={point.date} className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{point.date}</p>
-                  <p className="mt-2 text-lg font-bold text-slate-900">{point.conditionLabel || 'Clear'}</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{point.displayDate}</p>
+                  <p className="mt-2 text-lg font-bold text-slate-900">{point.conditionLabel || t('unavailable')}</p>
                   <div className="mt-4 space-y-2 text-sm text-slate-600">
                     <div className="flex items-center gap-2">
                       <Thermometer size={14} className="text-emerald-600" />
@@ -256,13 +268,15 @@ const MarketDetail = () => {
             </div>
             <div className="mt-4 text-sm text-slate-600">
               <p>
-                Forecast weather is resolved from {weatherSummary?.resolvedFrom || 'market'} coordinates and aligned with the same 7-day price forecast window.
+                {t('weatherResolvedFrom')
+                  .replace('{resolvedFrom}', weatherSummary?.resolvedFrom || 'market')
+                  .replace('{days}', String(forecast?.forecastHorizon || horizon))}
               </p>
               {weatherSummary?.note ? <p className="mt-2 text-slate-500">{weatherSummary.note}</p> : null}
             </div>
           </>
         ) : (
-          <p className="mt-6 text-slate-500">{weatherSummary?.note || 'Live weather is unavailable for this market right now.'}</p>
+          <p className="mt-6 text-slate-500">{weatherSummary?.note || t('liveWeatherUnavailable')}</p>
         )}
       </section>
 

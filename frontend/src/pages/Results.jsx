@@ -11,7 +11,19 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { api } from '../lib/api';
-import { commodityLabel, formatCurrency, formatNumber, riskClass } from '../lib/formatters';
+import {
+  commodityLabel,
+  formatCurrency,
+  formatDate,
+  formatNumber,
+  getForecastDisplayDate,
+  localizeConfidenceLevel,
+  localizeExplanationLine,
+  localizeRiskLevel,
+  localizeTrendLabel,
+  localizeWeatherImpactLabel,
+  riskClass,
+} from '../lib/formatters';
 import { useI18n } from '../context/I18nContext';
 
 const weatherImpactClass = (label) => {
@@ -84,9 +96,9 @@ const Results = () => {
         state: requestPayload.state,
         targetPrice: Number(alertForm.targetPrice),
       });
-      setAlertStatus('Alert created successfully.');
+      setAlertStatus(t('alertCreated'));
     } catch (err) {
-      setAlertStatus(err.response?.data?.error || 'Could not create alert.');
+      setAlertStatus(err.response?.data?.error || t('alertCreateFailed'));
     }
   };
 
@@ -97,7 +109,7 @@ const Results = () => {
           <div className="absolute inset-0 border-8 border-slate-200 rounded-full" />
           <div className="absolute inset-0 border-8 border-primary-500 rounded-full border-t-transparent animate-spin" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-700 animate-pulse">Running crop price forecast...</h2>
+        <h2 className="text-2xl font-bold text-slate-700 animate-pulse">{t('runningForecast')}</h2>
       </div>
     );
   }
@@ -122,6 +134,7 @@ const Results = () => {
   const weatherWindow = weatherSummary?.window;
   const weatherAvailable = weatherSummary?.status && weatherSummary.status !== 'unavailable';
   const bestSellDay = data?.summary?.bestSellDay;
+  const bestSellDisplayDate = formatDate(getForecastDisplayDate(bestSellDay), language);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fade-in-up">
@@ -131,7 +144,7 @@ const Results = () => {
       </Link>
 
       <section className="glass-panel p-8 md:p-10">
-        <p className="text-sm uppercase tracking-[0.24em] text-primary-600 font-semibold">Forecast Summary</p>
+        <p className="text-sm uppercase tracking-[0.24em] text-primary-600 font-semibold">{t('forecastSummary')}</p>
         <div className="mt-5 grid lg:grid-cols-[1.2fr_0.8fr] gap-8 items-start">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 text-emerald-700 px-4 py-2 text-sm font-semibold">
@@ -144,74 +157,74 @@ const Results = () => {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <span className={`px-4 py-2 rounded-full text-sm font-semibold ${riskClass(data?.riskLevel)}`}>
-                {t('risk')}: {data?.riskLevel}
+                {t('risk')}: {localizeRiskLevel(data?.riskLevel, language)}
               </span>
               <span className="px-4 py-2 rounded-full text-sm font-semibold bg-slate-100 text-slate-700">
-                {t('confidence')}: {data?.confidenceLabel}
+                {t('confidence')}: {localizeConfidenceLevel(data?.confidenceLabel, language)}
               </span>
               <span className={`px-4 py-2 rounded-full text-sm font-semibold ${weatherImpactClass(data?.weatherImpactLabel)}`}>
-                Weather: {data?.weatherImpactLabel || 'Unavailable'}
+                {t('weather')}: {localizeWeatherImpactLabel(data?.weatherImpactLabel || 'Unavailable', language)}
               </span>
               <span className="px-4 py-2 rounded-full text-sm font-semibold bg-primary-50 text-primary-700">
-                Window: {data?.forecastHorizon} days
+                {t('window')}: {data?.forecastHorizon} {language === 'hi' ? 'दिन' : 'days'}
               </span>
             </div>
             <ul className="mt-6 space-y-3 text-slate-600">
-              {(data?.explanation || []).map((line) => <li key={line}>- {line}</li>)}
+              {(data?.explanation || []).map((line) => <li key={line}>- {localizeExplanationLine(line, language)}</li>)}
             </ul>
           </div>
 
           <div className="rounded-3xl bg-slate-900 text-white p-7 shadow-2xl">
             <p className="text-sm uppercase tracking-[0.24em] text-slate-400">{t('predictedPrice')}</p>
             <p className="mt-3 text-5xl font-black">{formatCurrency(bestSellDay?.predictedPrice)}</p>
-            <p className="mt-2 text-slate-400">best projected day in the selected forecast window</p>
+            <p className="mt-2 text-slate-400">{t('bestProjectedDayHint')}</p>
             <div className="mt-8 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-slate-400">Best sell day</p>
-                <p className="mt-2 font-bold">{bestSellDay?.forecastDate || '--'}</p>
+                <p className="text-slate-400">{t('bestSellDay')}</p>
+                <p className="mt-2 font-bold">{bestSellDisplayDate}</p>
               </div>
               <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-slate-400">Average forecast</p>
+                <p className="text-slate-400">{t('averageForecast')}</p>
                 <p className="mt-2 font-bold">{formatCurrency(data?.summary?.averageForecastPrice)}</p>
               </div>
             </div>
 
             <div className="mt-6 rounded-2xl bg-white/10 p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-white">Model + weather context</p>
+                <p className="text-sm font-semibold text-white">{t('modelWeatherContext')}</p>
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${weatherImpactClass(data?.weatherImpactLabel)}`}>
-                  {data?.weatherImpactLabel || 'Unavailable'}
+                  {localizeWeatherImpactLabel(data?.weatherImpactLabel || 'Unavailable', language)}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <div className="rounded-xl bg-white/10 p-3">
                   <div className="flex items-center gap-2 text-slate-300">
                     <Database size={14} />
-                    <span>Model</span>
+                    <span>{t('model')}</span>
                   </div>
                   <p className="mt-2 font-semibold text-white">{data?.model?.modelName || '--'}</p>
                 </div>
                 <div className="rounded-xl bg-white/10 p-3">
                   <div className="flex items-center gap-2 text-slate-300">
                     <Thermometer size={14} />
-                    <span>Today</span>
+                    <span>{t('currentDay')}</span>
                   </div>
                   <p className="mt-2 font-semibold text-white">{formatTempBand(todayWeather)}</p>
                 </div>
                 <div className="rounded-xl bg-white/10 p-3">
                   <div className="flex items-center gap-2 text-slate-300">
                     <CloudRain size={14} />
-                    <span>Rain</span>
+                    <span>{t('rainfall')}</span>
                   </div>
                   <p className="mt-2 font-semibold text-white">{formatNumber(weatherWindow?.totalPrecipitation)} mm</p>
                 </div>
               </div>
               {weatherAvailable ? (
                 <p className="text-sm text-slate-300">
-                  {todayWeather?.conditionLabel || weatherSummary?.conditionLabel} outlook with humidity around {formatNumber(weatherWindow?.averageHumidity)}%.
+                  {todayWeather?.conditionLabel || weatherSummary?.conditionLabel} {language === 'hi' ? 'स्थिति, आर्द्रता लगभग' : 'outlook with humidity around'} {formatNumber(weatherWindow?.averageHumidity)}%.
                 </p>
               ) : (
-                <p className="text-sm text-slate-300">{weatherSummary?.note || 'Live weather is unavailable for this market right now.'}</p>
+                <p className="text-sm text-slate-300">{weatherSummary?.note || t('liveWeatherUnavailable')}</p>
               )}
             </div>
 
@@ -228,7 +241,7 @@ const Results = () => {
       <section className="grid lg:grid-cols-[1.2fr_0.8fr] gap-8">
         <div className="glass-panel p-7">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-slate-800">Mandi comparison</h2>
+            <h2 className="text-2xl font-bold text-slate-800">{t('mandiComparison')}</h2>
             <span className="text-sm text-slate-500">{data?.comparisonSummary?.searchScope}</span>
           </div>
           <div className="space-y-4">
@@ -237,20 +250,20 @@ const Results = () => {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <h3 className="text-xl font-bold text-slate-900">{market.marketName}</h3>
-                    <p className="mt-1 text-slate-500">{market.recentTrend} - {t('risk')}: {market.riskLevel}</p>
+                    <p className="mt-1 text-slate-500">{localizeTrendLabel(market.recentTrend, language)} - {t('risk')}: {localizeRiskLevel(market.riskLevel, language)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-black text-primary-700">{formatCurrency(market.predictedPrice)}</p>
-                    <p className="text-sm text-slate-400">Arrival {formatNumber(market.arrivalQty)} qtl</p>
+                    <p className="text-sm text-slate-400">{t('arrivalShort')} {formatNumber(market.arrivalQty)} qtl</p>
                   </div>
                 </div>
                 <div className="mt-4 grid sm:grid-cols-4 gap-3 text-sm">
                   <div className="rounded-xl bg-slate-50 p-3">
                     <p className="text-slate-500">{t('confidence')}</p>
-                    <p className="mt-1 font-semibold text-slate-800">{market.confidenceLabel}</p>
+                    <p className="mt-1 font-semibold text-slate-800">{localizeConfidenceLevel(market.confidenceLabel, language)}</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-slate-500">Model</p>
+                    <p className="text-slate-500">{t('model')}</p>
                     <p className="mt-1 font-semibold text-slate-800">{market.model?.modelName || '--'}</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 p-3">
@@ -262,31 +275,35 @@ const Results = () => {
                     <p className="mt-1 font-semibold text-slate-800">{formatCurrency(market.netReturn)}</p>
                   </div>
                 </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-600">
+                  <p>{t('bestSellDay')}: <span className="font-semibold text-slate-900">{formatDate(getForecastDisplayDate(market.forecastSummary?.bestSellDay), language)}</span></p>
+                  <p>{t('averageForecast')}: <span className="font-semibold text-slate-900">{formatCurrency(market.forecastSummary?.averageForecastPrice)}</span></p>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
         <div className="space-y-6">
-          <div className="glass-panel p-7">
-            <h2 className="text-2xl font-bold text-slate-800">{t('forecast')}</h2>
-            <div className="mt-5 space-y-3 text-slate-600">
-              <p>Average: <span className="font-semibold text-slate-900">{formatCurrency(data?.summary?.averageForecastPrice)}</span></p>
-              <p>Best day: <span className="font-semibold text-slate-900">{data?.summary?.bestSellDay?.forecastDate}</span></p>
-              <p>Expected change: <span className="font-semibold text-slate-900">{data?.summary?.expectedChangePercent}%</span></p>
-              <p>Data mode: <span className="font-semibold text-slate-900">{data?.dataSource?.mode || '--'}</span></p>
-            </div>
+        <div className="glass-panel p-7">
+          <h2 className="text-2xl font-bold text-slate-800">{t('forecast')}</h2>
+          <div className="mt-5 space-y-3 text-slate-600">
+            <p>{t('average')}: <span className="font-semibold text-slate-900">{formatCurrency(data?.summary?.averageForecastPrice)}</span></p>
+            <p>{t('bestDay')}: <span className="font-semibold text-slate-900">{bestSellDisplayDate}</span></p>
+            <p>{t('expectedChange')}: <span className="font-semibold text-slate-900">{data?.summary?.expectedChangePercent}%</span></p>
+            <p>{t('dataMode')}: <span className="font-semibold text-slate-900">{data?.dataSource?.mode || '--'}</span></p>
           </div>
+        </div>
 
-          <div className="glass-panel p-7">
-            <h2 className="text-2xl font-bold text-slate-800">Weather influence</h2>
+        <div className="glass-panel p-7">
+            <h2 className="text-2xl font-bold text-slate-800">{t('weatherInfluence')}</h2>
             <div className="mt-5 space-y-3 text-slate-600">
               <p className={`inline-flex px-3 py-1 rounded-full text-sm font-semibold ${weatherImpactClass(data?.weatherImpactLabel)}`}>
-                {data?.weatherImpactLabel || 'Unavailable'}
+                {localizeWeatherImpactLabel(data?.weatherImpactLabel || 'Unavailable', language)}
               </p>
-              <p>Humidity: <span className="font-semibold text-slate-900">{formatNumber(weatherWindow?.averageHumidity)}%</span></p>
-              <p>Rainfall: <span className="font-semibold text-slate-900">{formatNumber(weatherWindow?.totalPrecipitation)} mm</span></p>
-              <p>Temperature: <span className="font-semibold text-slate-900">{formatTempBand(todayWeather)}</span></p>
+              <p>{t('humidity')}: <span className="font-semibold text-slate-900">{formatNumber(weatherWindow?.averageHumidity)}%</span></p>
+              <p>{t('rainfall')}: <span className="font-semibold text-slate-900">{formatNumber(weatherWindow?.totalPrecipitation)} mm</span></p>
+              <p>{t('temperature')}: <span className="font-semibold text-slate-900">{formatTempBand(todayWeather)}</span></p>
               {weatherSummary?.note ? <p className="text-sm text-slate-500">{weatherSummary.note}</p> : null}
             </div>
           </div>
@@ -307,8 +324,8 @@ const Results = () => {
                 value={alertForm.direction}
                 onChange={(event) => setAlertForm((current) => ({ ...current, direction: event.target.value }))}
               >
-                <option value="above">Above target</option>
-                <option value="below">Below target</option>
+                <option value="above">{t('targetDirectionAbove')}</option>
+                <option value="below">{t('targetDirectionBelow')}</option>
               </select>
               <button type="button" onClick={createAlert} className="w-full btn-primary justify-center">
                 <BellPlus size={18} />
