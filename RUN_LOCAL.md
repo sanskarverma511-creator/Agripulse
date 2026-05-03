@@ -11,11 +11,16 @@ The project is already configured with Docker Compose, which is the easiest and 
 
 ### Steps
 1.  **Open a terminal** in the project root directory.
-2.  **Start all services**:
+2.  **Optional: configure shared MongoDB for both laptops**:
+    - Copy `.env.example` to `.env` in the project root.
+    - Set the same `MONGODB_URI` and `MONGODB_DB` on both laptops.
+    - If you are using MongoDB Atlas or a central Mongo server, both laptops must use the exact same values.
+    - `MAX_MARKETS_PER_SCOPE` controls how many mandis the backend returns per district/state query. The default is now `100`.
+3.  **Start all services**:
     ```powershell
     docker compose up --build
     ```
-3.  **Access the application**:
+4.  **Access the application**:
     - Frontend: `http://localhost:5173`
     - Backend API: `http://localhost:8000`
     - Model Service: `http://localhost:8001`
@@ -81,6 +86,25 @@ docker compose exec backend npm run seed:demo
 ```
 
 If the state dropdown shows no options, that means MongoDB currently has no imported/demo mandi data yet.
+
+### Use one shared MongoDB on both laptops
+
+If you want the same imported states, districts, mandis, and alerts to appear on both laptops permanently:
+
+1. Create a root `.env` file on laptop 1 and laptop 2 from `.env.example`.
+2. Put the same values in both files:
+   ```powershell
+   MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-host>
+   MONGODB_DB=agri_market_intel
+   MAX_MARKETS_PER_SCOPE=100
+   ```
+3. Restart the stack on each laptop:
+   ```powershell
+   docker compose down
+   docker compose up --build
+   ```
+
+After that, both laptops will read and write the same MongoDB instead of separate local Docker volumes.
 
 ---
 

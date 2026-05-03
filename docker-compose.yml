@@ -22,10 +22,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - PORT=8000
-      - MONGODB_URI=mongodb://mongo:27017
-      - MONGODB_DB=agri_market_intel
-      - MODEL_SERVICE_URL=http://model_service:8001
+      - PORT=${BACKEND_PORT:-8000}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017}
+      - MONGODB_DB=${MONGODB_DB:-agri_market_intel}
+      - MODEL_SERVICE_URL=${MODEL_SERVICE_URL:-http://model_service:8001}
+      - MAX_MARKETS_PER_SCOPE=${MAX_MARKETS_PER_SCOPE:-100}
     depends_on:
       - mongo
       - model_service

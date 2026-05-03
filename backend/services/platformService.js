@@ -10,7 +10,11 @@ const {
 } = require('../utils/normalizers');
 
 const MIN_ACTIVE_RECORDS = 10;
-const MAX_MARKETS_PER_SCOPE = 10;
+const DEFAULT_MAX_MARKETS_PER_SCOPE = 100;
+const parsedMarketScopeLimit = Number.parseInt(process.env.MAX_MARKETS_PER_SCOPE || '', 10);
+const MAX_MARKETS_PER_SCOPE = Number.isFinite(parsedMarketScopeLimit) && parsedMarketScopeLimit > 0
+    ? parsedMarketScopeLimit
+    : DEFAULT_MAX_MARKETS_PER_SCOPE;
 
 function badRequest(message) {
     const error = new Error(message);
